@@ -19,8 +19,12 @@
     - [Virtual DOM](#virtual-dom)
     - [Diffing](#diffing)
   - [Children as props](#children-as-props)
-
-<a id="intro-to-re-renders"></a>
+- [Chapter 3: Configuration concerns with elements as props](#chapter-3-configuration-concerns-with-elements-as-props)
+  - [Elements as props](#elements-as-props)
+  - [children as props](#children-as-props)
+  - [What is the main difference between children and element as props?](#what-is-the-main-difference-between-children-and-element-as-props)
+  - [What is ReactNode and ReactElement?](#what-is-reactnode-and-reactelement)
+    <a id="intro-to-re-renders"></a>
 
 ## Chapter 1: Intro to re-renders
 
@@ -454,6 +458,202 @@ export default function App() {
       <BunchOfStuff />
       <OtherStuffAlsoComplicated />
     </ScrollableWithMovingBlock>
+  );
+}
+```
+
+<a id="chapter-3-configuration-concerns-with-elements-as-props"></a>
+
+# Chapter 3: Configuration concerns with elements as props
+
+<a id="elements-as-props"></a>
+
+## Elements as props
+
+Passing elements as props would help to solve the problem such like when there’s a component, like `<Button/>`, and it has to render icons based on different situation like below, and often it ends up that `<Button/>` components has to receive lot of props, and this is hard to maintain and debug.
+
+```javascript
+const Button = ({
+    isLoading,
+    iconColor,
+    iconSize,
+    ...
+}) => {
+
+}
+```
+
+What we can improve is that we pass elements as props, let’s say you need to implement a `<Button/>` component with different icons: `error` and `warning`.
+
+```javascript
+// element as props
+// Import error and warning icon, here I am using react-icons
+
+import { ReactElement } from "react";
+import { MdErrorOutline, MdOutlineWarning } from "react-icons/md";
+
+// Define types of icon
+interface IconType {
+    color:string;
+    size?:"large" | "medium" | "small";
+}
+
+//Create error and warning elements
+const Error = ({ color, size }: IconType) => (
+  <MdErrorOutline style={{ color }} fontSize={size} />
+);
+const Warning = ({ color, size }: IconType) => (
+  <MdOutlineWarning style={{ color }} fontSize={size} />
+);
+
+const Button = ({icon}:{icon:ReactElement}) => {
+    rerurn <button>Submit {icon}</button>
+}
+
+export default function App() {
+    return (
+      <div>
+        <Button icon={<Error color="orange"/>}/>
+        <Button icon={<Warning color="red"/>}/>
+      </div>
+    )
+}
+```
+
+<a id="children-as-props"></a>
+
+## children as props
+
+```javascript
+import "./styles.css";
+import { ReactElement, ReactNode } from "react";
+import { MdErrorOutline, MdOutlineWarning } from "react-icons/md";
+
+interface IconType {
+  color: string;
+  size?: "large" | "medium" | "small";
+}
+
+const Error = ({ color, size }: IconType) => (
+  <MdErrorOutline style={{ color }} fontSize={size} />
+);
+const Warning = ({ color, size }: IconType) => (
+  <MdOutlineWarning style={{ color }} fontSize={size} />
+);
+
+const Button = ({ children }: { children: ReactNode }) => {
+  return <button>{children}</button>;
+};
+
+export default function App() {
+  return (
+    <div className="App">
+      <Button>
+        Submit <Error color="orange" />
+      </Button>
+      <Button>
+        Submit <Warning color="red" />
+      </Button>
+    </div>
+  );
+}
+```
+
+<a id="what-is-the-main-difference-between-children-and-element-as-props"></a>
+
+### What is the main difference between `children` and `element` as props?
+
+- **Passing an element as a prop**:
+  - Usage: Define a prop in component, or we can say declare a variable.
+    ```javascript
+    const Error = () => <MdErrorOutline />;
+    ```
+  - Example:
+    ```javascript
+    <Button icon={<Error />} />
+    ```
+- **Passing children as a prop**:
+
+  - Usage: Use `children` as a prop and placing between the opening and closing tags of the component.
+    ```javascript
+    const Button = ({ children }) => <button>{children}</button>;
+    ```
+  - Example:
+
+    ```javascript
+    <Button>
+      <Error />
+    </Button>
+    ```
+
+- **Key difference:**
+  - **Explicitness:** Passing an element as a specific prop is more explicit and can be more descriptive about the role of the element in the component.
+  - **Flexibility in Structure:** Passing children is more flexible for components that _might not know or care about the specific structure or type of their content_.
+  - **Complexity and Control:** Passing elements as props can offer more control over how and where each piece of content is rendered within the component, but can also make the component more complex.
+  - **Readability:** Using children can sometimes make components easier to read and use, as it adheres to the familiar pattern of HTML structure.
+
+<a id="what-is-reactnode-and-reactelement"></a>
+
+## What is ReactNode and ReactElement?
+
+- **ReactNode:** ReactNode is a type that can be a React element, a React fragment, a string, a number, null, or undefined.
+- **ReactElement:** ReactElement is a type that can be a React element, a React fragment, or a React portal.
+
+```javascript
+type ReactText = string | number;
+type ReactChild = ReactElement | ReactText;
+
+interface ReactNodeArray extends Array<ReactNode> {}
+type ReactFragment = {} | ReactNodeArray;
+type ReactNode =
+  | ReactChild
+  | ReactFragment
+  | ReactPortal
+  | boolean
+  | null
+  | undefined;
+```
+
+Essentially, `ReactNode` is a union type of `ReactChild`, `ReactFragment`, `ReactPortal`, `boolean`, `null`, and `undefined`, and `ReactElement` is just a type alias of `ReactChild`.
+
+<a id="conditional-rendering-and-performance"></a>
+
+## Conditional rendering and performance
+
+```javascript
+export default function App() {
+  const [isOpen, setIsOpen] = useState(false);
+
+  // Here, <Footer/> is an object, it won't trigger re-render of <App/>
+  // Only if isOpen set to true, <Footer/> will be rendered inside of <ModalDialog/>
+  const footer = <Footer />;
+
+  return (
+    <div className="layout">
+      <Button onClick={() => setIsOpen(true)}>Open dialog</Button>
+      {isOpen ? (
+        <ModalDialog onClose={() => setIsOpen(false)} footer={footer} />
+      ) : null}
+    </div>
+  );
+}
+```
+
+Here, we declared `<Footer/>` as a variable, which means it is an element, and it's just an **object**, from React's perspective, creating an object is cheap compared to rendering components.
+
+In this case, `<Footer/>` will be re-rendered inside of `<ModalDialog/>` component, but it won't trigger re-render of `<App/>` component since it's just an object.
+
+You might see this kind of pattern in some libraries, like `react-router-dom`, they use this pattern to improve performance, for example:
+
+```javascript
+import { BrowserRouter as Router, Route, Switch } from "react-router-dom";
+
+export default function App() {
+  return (
+    <>
+      <Route path="/home" element={<Home />} />
+      <Route path="/about" element={<About />} />
+    </>
   );
 }
 ```
