@@ -657,3 +657,15 @@ export default function App() {
   );
 }
 ```
+
+<a id="chapter-4-advanced-configuration-with-render-props"></a>
+
+## Chapter 4: Advanced configuration with render props
+
+## Render props for rendering Elements
+
+I've used **elements as props** to render elements by assuming that the component will always render the same element, but what if for example the icon library we've used does not have the properties we need. like `color` or `size`, so here we can use **render props** to solve this problem.
+
+### What is render props?
+
+- Render props is a technique for sharing code between React components using a prop whose value is a **function**.
