@@ -24,7 +24,14 @@
   - [children as props](#children-as-props)
   - [What is the main difference between children and element as props?](#what-is-the-main-difference-between-children-and-element-as-props)
   - [What is ReactNode and ReactElement?](#what-is-reactnode-and-reactelement)
-    <a id="intro-to-re-renders"></a>
+- [Chapter 4: Advanced configuration with render props](#chapter-4-advanced-configuration-with-render-props)
+  - [Render props for rendering Elements](#render-props-for-rendering-elements)
+    - [What is render props?](#what-is-render-props)
+    - [Sharing stateful logic: children as render props](#sharing-stateful-logic-children-as-render-props)
+    - [Hooks replaced render props](#hooks-replaced-render-props)
+    - [Render props vs Hooks](#render-props-vs-hooks)
+
+<a id="intro-to-re-renders"></a>
 
 ## Chapter 1: Intro to re-renders
 
@@ -669,3 +676,170 @@ I've used **elements as props** to render elements by assuming that the componen
 ### What is render props?
 
 - Render props is a technique for sharing code between React components using a prop whose value is a **function**.
+
+```javascript
+// MouseTracker.tsx
+
+import { React, useState, useEffect } from "react";
+
+interface MousePositionProps {
+  children: (state: { x: number, y: number }) => JSX.Element;
+}
+
+export const MouseTracker: React.FC<MousePositionProps> = ({ children }) => {
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    const updateMousePosition = (e: MouseEvent) => {
+      setPosition({ x: e.clientX, y: e.clientY });
+    };
+
+    document.addEventListener("mousemove", updateMousePosition);
+
+    return () => {
+      document.removeEventListener("mousemove", updateMousePosition);
+    };
+  }, []);
+
+  return children(position);
+};
+```
+
+```javascript
+// App.tsx
+
+import { MouseTracker } from "./MouseTracker";
+
+export default function App() {
+  return (
+    <div>
+      <MouseTracker>
+        {({ x, y }) => (
+          <h1>
+            Mouse at position:
+            <br /> x: {x}, y: {y}
+          </h1>
+        )}
+      </MouseTracker>
+    </div>
+  );
+}
+```
+
+<a id="sharing-stateful-logic-children-as-render-props"></a>
+
+### Sharing stateful logic: children as render props
+
+```javascript
+// MouseTracker.tsx
+
+import { React, useState, useEffect } from "react";
+
+interface MousePositionProps {
+  renderMousePosition: (state: { x: number, y: number }) => JSX.Element;
+}
+
+export const MouseTracker: React.FC<MousePositionProps> = ({
+  renderMousePosition,
+}) => {
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    const updateMousePosition = (e: MouseEvent) => {
+      setPosition({ x: e.clientX, y: e.clientY });
+    };
+
+    document.addEventListener("mousemove", updateMousePosition);
+
+    return () => {
+      document.removeEventListener("mousemove", updateMousePosition);
+    };
+  }, []);
+
+  return renderMousePosition(position);
+};
+```
+
+```javascript
+// App.tsx
+import { MouseTracker } from "./MouseTracker";
+
+export default function App() {
+  return (
+    <div>
+      <MouseTracker
+        renderMousePosition={({ x, y }) => (
+          <h1>
+            Mouse at position:
+            <br /> x: {x}, y: {y}
+          </h1>
+        )}
+      />
+    </div>
+  );
+}
+```
+
+<a id="sharing-stateful-logic-custom-hooks"></a>
+
+### Hooks replaced render props
+
+We can extract the logic from `MouseTracker` component and create a custom hook, and use it inside of `App` component, this approach has the same effect as render props.
+
+```javascript
+// useMousePosition.tsx
+
+import { useState, useEffect } from "react";
+
+export const useMousePosition = () => {
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    const updateMousePosition = (e: MouseEvent) => {
+      setPosition({ x: e.clientX, y: e.clientY });
+    };
+
+    document.addEventListener("mousemove", updateMousePosition);
+
+    return () => {
+      document.removeEventListener("mousemove", updateMousePosition);
+    };
+  }, []);
+
+  return position;
+};
+```
+
+```javascript
+// App.tsx
+
+import { useMousePosition } from "./useMousePosition";
+
+export default function App() {
+  const { x, y } = useMousePosition();
+
+  return (
+    <div>
+      <h1>
+        Mouse at position:
+        <br /> x: {x}, y: {y}
+      </h1>
+    </div>
+  );
+}
+```
+
+<a id="render-props-vs-hooks"></a>
+
+### Render props vs Hooks
+
+Let's use **profiler** to check what causes re-render.
+
+- render props
+  ![render-props](./screenshots/render-props-rerender.png)
+
+  Only `MouseTracker` causes re-render.
+
+- hooks
+  ![hooks](./screenshots/custom-hook-rerender.png)
+  `App` causes re-render.
