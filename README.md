@@ -835,11 +835,11 @@ export default function App() {
 
 Let's use **profiler** to check what causes re-render.
 
-- render props
+#### render props
   ![render-props](./screenshots/render-props-rerender.png)
 
   Only `MouseTracker` causes re-render.
 
-- hooks
+#### hooks
   ![hooks](./screenshots/custom-hook-rerender.png)
   `App` causes re-render.
