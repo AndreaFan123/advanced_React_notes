@@ -30,6 +30,14 @@
     - [Sharing stateful logic: children as render props](#sharing-stateful-logic-children-as-render-props)
     - [Hooks replaced render props](#hooks-replaced-render-props)
     - [Render props vs Hooks](#render-props-vs-hooks)
+- [Chapter 5: Memoization with useMemo, useCallback and React.memo](#chapter-5-memoization-with-usememo-usecallback-and-reactmemo)
+  - [Refresh: How does javascript compare values?](#refresh-how-does-javascript-compare-values)
+    - [Primitive values](#primitive-values)
+    - [Reference values](#reference-values)
+  - [What is memoization?](#what-is-memoization)
+  - [Memoization in React](#memoization-in-react)
+  - [useCallback and how to memoize functions](#usecalback-and-how-to-memoize-functions)
+  - [useMemo and how to memoize values](#usememo-and-how-to-memoize-values)
 
 <a id="intro-to-re-renders"></a>
 
@@ -843,3 +851,314 @@ Let's use **profiler** to check what causes re-render.
 #### hooks
   ![hooks](./screenshots/custom-hook-rerender.png)
   `App` causes re-render.
+
+<a id="memoization-with-usememo-usecallback-and-reactmemo"></a>
+
+## Chapter 5: Memoization with useMemo, useCallback and React.memo
+
+Before we jump into `useMemo`, `useCallback` and `React.memo`, we need to understand what is **memoization** and some basic of javascript.
+
+<a id="how-does-javascript-compare-values"></a>
+
+### Refresh: How does javascript compare values?
+
+First we need to refresh our memory about how javascript compare values, there are two types of values in javascript, **primitive** values and **reference** values.
+
+<a id="primitive-values"></a>
+
+#### Primitive values:
+
+- **Primitive values:**
+  - `string`
+  - `number`
+  - `boolean`
+  - `null`
+  - `undefined`
+  - `symbol`
+  - `bigint`
+- Characteristics of Primitive Values:
+
+  - **Immutable:** Primitive values are immutable, meaning that they cannot be changed.
+  - **Compared by Value:** Primitive values are compared by value, meaning that two values are strictly equal if they have the same value.
+  - **Copy by value:** When we assign a primitive value to a variable, the value is copied to the variable.
+
+- Example 1:
+
+  ```javascript
+  let a = 1;
+  let b = a; // copy by value
+  a = 2; // Changing a does not affect b
+  console.log(b); // 1
+  ```
+
+- Example 2:
+
+  ```javascript
+  let a = "hello";
+  let b = a; // copy by value
+  a = "world"; // Changing a does not affect b
+  console.log(b); // hello
+  ```
+
+<a id="reference-values"></a>
+
+#### Reference values:
+
+- **Reference values:**
+
+  - `object`
+  - `array`
+  - `function`
+
+- Characteristics of Reference Values:
+
+  - **Mutable:** Reference values are mutable, meaning that they can be changed.
+  - **Compared by Reference:** Reference values are compared by reference, meaning that two values are strictly equal if they refer to the same object.
+  - **Copy by reference:** When we assign a reference value to a variable, the reference is copied to the variable.
+
+- Example 1:
+
+  ```javascript
+  let a = { name: "Alen" };
+  let b = a; // copy by reference
+  a.name = "Bob"; // Changing a affects b
+  console.log(b.name); // Bob
+  ```
+
+- Example 2:
+
+  ```javascript
+  let a = [1, 2, 3];
+  let b = a; // copy by reference
+  a.push(4); // Changing a affects b
+  console.log(b); // [1, 2, 3, 4]
+  ```
+
+- Example 3:
+
+  ```javascript
+  const a = { a: 1 };
+  const b = { a: 1 };
+  console.log(a === b); // false, because they are different instances in memory.
+  ```
+
+- Example 4:
+
+  ```javascript
+  const a = { a: 1 };
+  const b = a;
+  console.log(a === b); // true, because they are compared by reference, and they have same reference in memory.
+  ```
+
+<a id="what-is-memoization"></a>
+
+### What is memoization?
+
+It is an optimization technique, it does this by storing computation results in cache, and retrieving them from cache when needed.
+
+- **Cache storage:** Memoization involves maintaining a cache (like a table or dictionary) where the results of function calls are stored. Each entry in the cache corresponds to a set of input parameters of the function.
+
+- **Function modification:** When the memoized function is called, it first checks if the result for the given set of inputs is already in the cache.
+  - If it is, then the cached result is returned.
+  - If it is not, then the function is executed and the result is stored in the cache.-
+
+### Memoization in React
+
+When React re-renders a component, it needs to compare the previous and the new values of the props and state to determine if the component needs to be re-rendered, i.e. when we use `useEffect` hook, React will compare the previous and the new values of the dependencies.
+
+```javascript
+export const Component = () => {
+  const submit = () => {
+    // submit logic
+  };
+
+  useEffect(() => {
+    // do something
+  }, [submit]);
+
+  return <button onClick={submit}>Submit</button>;
+};
+```
+
+In this example, React will compare the previous and the new values of `submit` function, and it will always be different, because `submit` function is created every time the component re-renders, and remember that **functions are reference values**, so React will compare the reference of the function, and it will always be different.
+
+<a id="usecalback-and-how-to-memoize-functions"></a>
+
+### `useCallback` and how to memoize functions
+
+1. We can use `useCallback` to **cache a function** between re-renders by doing `const cachedFn = useCallback(fn, dependencies)`
+2. Call `useCallback` at the top level of the component.
+
+- ## **Usage**:
+
+  - **Skipping re-rendering of components:** React will compare the **dependencies** with the previous dependencies, and compare with `Object.is`, if none of the dependencies changed, React will skip re-rendering of the component.
+
+  ```javascript
+  export const Component = () => {
+    const submit = useCallback(() => {
+      // submit logic
+    }, []);
+
+    useEffect(() => {
+      // do something
+    }, [submit]);
+
+    return <button onClick={submit}>Submit</button>;
+  };
+  ```
+
+- **Updating state from a memoized callback:** This is when we need to update state based on previous state from a memoized callback, we need to use the callback version of `setState` to make sure that we are using the latest state.
+
+  ```javascript
+  export const Component = () => {
+    const [todos, setTodos] = useState([]);
+
+    const handleAddTodo = useCallback((text) => {
+      const newTodo = {id: nextId++, text};
+      setTodos([...todos, newTodo]);
+    },[todos])
+  ```
+
+  When we need to read some state **only to calculate the next state**, we can remove that `todos` dependency by passing an [update function](https://react.dev/reference/react/useState#updating-state-based-on-the-previous-state).
+
+  ```javascript
+  export const Component = () => {
+    const [todos, setTodos] = useState([]);
+
+    const handleAddTodo = useCallback((text) => {
+      const newTodo = {id: nextId++, text};
+      setTodos(todos => [...todos, newTodo]);
+    },[])
+  ```
+
+  - **Preventing an Effect from firing too often:** This is when we need to call a function inside an [Effect](https://react.dev/learn/synchronizing-with-effects).
+
+  ```javascript
+  export const FetchData = () => {
+    const [query, setQuery] = useState("");
+
+    const buildQuery = useCallback(() => {
+      // build query
+    }, [query]); // Only change when query changes
+
+    useEffect(() => {
+      const url = buildQuery();
+      // fetch data
+    }, [buildQuery]); // Only change when buildQuery changes
+  };
+  ```
+
+  - **Optimizing a custom Hook:** When create a custom hook, React official recommends to use `useCallback` wrap any function.
+
+> Reference: [React Official Doc: useCallback](https://react.dev/docs/hooks-reference#usecallback)
+
+<a id="usememo-and-how-to-memoize-values"></a>
+
+### `useMemo` and how to memoize values
+
+1. We can use `useMemo` to **cache a value** between re-renders by doing `const cachedValue = useMemo(calculateValue, dependencies)`
+2. Call `useMemo` at the top level of the component to cache a calculation between re-renders.
+3. On the initial render, `useMemo` returns the result of calling calculateValue with no arguments, and during next renders, it will only recompute the cached value when one of the dependencies has changed.
+
+- ## **Usage**:
+
+  - **Skipping expensive recalculations:** See the explanation on point 3 above.
+    - [Example from React doc](https://react.dev/reference/react/useMemo#skipping-expensive-recalculations)
+  - **Skipping re-rendering of components:**
+    - [Example from React doc](https://react.dev/reference/react/useMemo#skipping-repeated-calculations)]
+  - **Memoizing a dependency of another Hook:**
+    - [Example from React doc](https://react.dev/reference/react/useMemo#memoizing-a-dependency-of-another-hook)
+  - **Memoizing a function:**
+    - [Example from React doc](https://react.dev/reference/react/useMemo#memoizing-a-function)
+
+### Anti-pattern: memoizing props
+
+See example here, it seemed to be preventing re-render, but it's not, because when a component re-renders, every component inside of it will re-render.
+
+```javascript
+const Component = () => {
+  const handleClick = useCallback(() => {
+    // do something
+  }, []);
+
+  return <Button onClick={handleClick} />;
+};
+```
+
+#### Two major cases where we should memoize props:
+
+- **When the prop is used as a dependency in another hook:**
+
+  ```javascript
+  const FetchProduct = () => {
+    const fetch = useCallback(() => {
+      // fetch data
+    }, [productId]);
+
+    return <ProductListing onFetch={fetch} />;
+  };
+
+  const ProductListing = ({ onFetch }) => {
+    useEffect(() => {
+      onFetch();
+    }, [onFetch]);
+  };
+  ```
+
+- **When a component is wrapped in `React.memo`**
+
+<a id="what-is-reactmemo"></a>
+
+### What is `React.memo`
+
+`memo `lets you skip re-rendering a component when its props are unchanged. By using `const MemoizedComponent = memo(SomeComponent, arePropsEqual?)`
+
+- **component:** The `memo` does not modify it, but to return a new, memoized component.
+- **arePropsEqual:** This is an optional, a function can accepts 2 arguments: `prevProps` and `nextProps`, and returns a boolean value, if `true`, the component will not re-render.
+
+- **Usage:**
+  - **Skipping re-rendering of components:**
+    - [Example from React doc](https://react.dev/reference/react/memo#skipping-re-rendering-when-props-are-unchanged)
+  - **Updating a memoized component using state:**
+    - [Example from React doc](https://react.dev/reference/react/memo#updating-a-memoized-component-using-state)
+    - Even if we use `memo` to wrap a component, it will still re-render if the state changes.
+  - **Minimizing props changes:**
+    - [Example from React doc](https://react.dev/reference/react/memo#minimizing-props-changes)
+    - If any prop is **not shallowly equal**, the component will re-render.
+    - If we want to prevent re-rendering, we need to use `useMemo` to wrap the prop, especially when the prop is an object or an array.
+  - **Specifying a custom comparison function:**
+    - [Example from React doc](https://react.dev/reference/react/memo#specifying-a-custom-comparison-function)
+
+<a id="what-is-shallow-equality"></a>
+
+#### What is shallow equality?
+
+This is a method of comparison between two objects or arrays that checks for equality only **at the first level of their properties or elements.**
+
+```javascript
+const obj1 = { a: 1, b: 2 };
+const obj2 = { a: 1, b: 2 };
+
+// Key-value pairs are the same
+```
+
+```javascript
+const arr1 = [1, 2, 3];
+const arr2 = [1, 2, 3];
+```
+
+<a id="what-is-deep-equality"></a>
+
+#### What is deep equality?
+
+Unlike shallow equality, deep equality checks for equality **at all levels of the object or array.**
+
+```javascript
+const obj1 = { a: 1, b: { c: 2 } };
+const obj2 = { a: 1, b: { c: 2 } };
+```
+
+```javascript
+const arr1 = [1, 2, [3, 4]];
+const arr2 = [1, 2, [3, 4]];
+```
