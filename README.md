@@ -1096,3 +1096,61 @@ const Component = () => {
     }, [onFetch]);
   };
   ```
+
+- **When a component is wrapped in `React.memo`**
+
+<a id="what-is-reactmemo"></a>
+
+### What is `React.memo`
+
+`memo `lets you skip re-rendering a component when its props are unchanged. By using `const MemoizedComponent = memo(SomeComponent, arePropsEqual?)`
+
+- **component:** The `memo` does not modify it, but to return a new, memoized component.
+- **arePropsEqual:** This is an optional, a function can accepts 2 arguments: `prevProps` and `nextProps`, and returns a boolean value, if `true`, the component will not re-render.
+
+- **Usage:**
+  - **Skipping re-rendering of components:**
+    - [Example from React doc](https://react.dev/reference/react/memo#skipping-re-rendering-when-props-are-unchanged)
+  - **Updating a memoized component using state:**
+    - [Example from React doc](https://react.dev/reference/react/memo#updating-a-memoized-component-using-state)
+    - Even if we use `memo` to wrap a component, it will still re-render if the state changes.
+  - **Minimizing props changes:**
+    - [Example from React doc](https://react.dev/reference/react/memo#minimizing-props-changes)
+    - If any prop is **not shallowly equal**, the component will re-render.
+    - If we want to prevent re-rendering, we need to use `useMemo` to wrap the prop, especially when the prop is an object or an array.
+  - **Specifying a custom comparison function:**
+    - [Example from React doc](https://react.dev/reference/react/memo#specifying-a-custom-comparison-function)
+
+<a id="what-is-shallow-equality"></a>
+
+#### What is shallow equality?
+
+This is a method of comparison between two objects or arrays that checks for equality only **at the first level of their properties or elements.**
+
+```javascript
+const obj1 = { a: 1, b: 2 };
+const obj2 = { a: 1, b: 2 };
+
+// Key-value pairs are the same
+```
+
+```javascript
+const arr1 = [1, 2, 3];
+const arr2 = [1, 2, 3];
+```
+
+<a id="what-is-deep-equality"></a>
+
+#### What is deep equality?
+
+Unlike shallow equality, deep equality checks for equality **at all levels of the object or array.**
+
+```javascript
+const obj1 = { a: 1, b: { c: 2 } };
+const obj2 = { a: 1, b: { c: 2 } };
+```
+
+```javascript
+const arr1 = [1, 2, [3, 4]];
+const arr2 = [1, 2, [3, 4]];
+```
