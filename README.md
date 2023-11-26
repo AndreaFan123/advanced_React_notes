@@ -30,6 +30,14 @@
     - [Sharing stateful logic: children as render props](#sharing-stateful-logic-children-as-render-props)
     - [Hooks replaced render props](#hooks-replaced-render-props)
     - [Render props vs Hooks](#render-props-vs-hooks)
+- [Chapter 5: Memoization with useMemo, useCallback and React.memo](#chapter-5-memoization-with-usememo-usecallback-and-reactmemo)
+  - [Refresh: How does javascript compare values?](#refresh-how-does-javascript-compare-values)
+    - [Primitive values](#primitive-values)
+    - [Reference values](#reference-values)
+  - [What is memoization?](#what-is-memoization)
+  - [Memoization in React](#memoization-in-react)
+  - [useCallback and how to memoize functions](#usecalback-and-how-to-memoize-functions)
+  - [useMemo and how to memoize values](#usememo-and-how-to-memoize-values)
 
 <a id="intro-to-re-renders"></a>
 
