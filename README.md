@@ -38,6 +38,11 @@
   - [Memoization in React](#memoization-in-react)
   - [useCallback and how to memoize functions](#usecalback-and-how-to-memoize-functions)
   - [useMemo and how to memoize values](#usememo-and-how-to-memoize-values)
+  - [What is React.memo?](#what-is-reactmemo)
+    - [What is shallow equality?](#what-is-shallow-equality)
+    - [What is deep equality?](#what-is-deep-equality)
+  - [Three rules of using React.Memo](#three-rules-of-using-react-memo)
+  - [React.Memo and children](#react-memo-and-children)
 
 <a id="intro-to-re-renders"></a>
 
@@ -1161,4 +1166,79 @@ const obj2 = { a: 1, b: { c: 2 } };
 ```javascript
 const arr1 = [1, 2, [3, 4]];
 const arr2 = [1, 2, [3, 4]];
+```
+
+<a id="three-rules-of-using-react-memo"></a>
+
+### Three rules of using `React.memo`
+
+- **Rule 1: never spread props that are coming from other components**
+  spreading props can lead to unnecessary re-renders since it passes down all props, including those that the child component might not need or use.
+
+  ```javascript
+  // Not recommended
+  const Component = ({ data }) => {
+    return <ChildComponent {...data} />;
+  };
+
+  // Recommended
+  const Component = ({ data }) => {
+    return <ChildComponent data={data} />;
+  };
+  ```
+
+- **Rule 2: avoid passing non-primitive props that are coming from other components**
+  Non-primitive props (like objects or arrays) can cause child components to re-render unnecessarily. This is because these types of props are often re-created on each render.
+
+  > Remember why? Because they are **reference values**, and they are compared by reference.
+
+  ```javascript
+  // Not recommended
+  const ParentComponent = () => {
+    const complexProp = { key: "value" };
+    return <ChildComponent complexProp={complexProp} />;
+  };
+
+  // Recommended
+  const ParentComponent = () => {
+    const complexProp = useMemo(() => ({ key: "value" }), []);
+    return <ChildComponent complexProp={complexProp} />;
+  };
+  ```
+
+- **Rule 3: avoid passing non-primitive props that are coming from custom hooks**
+  Often we have seen that it is recommended to create custom hooks to share logic between components, but this approach is hide away whether the data or functions have stable references.
+
+  Since every custom hook will be triggered on every re-render, it's hard to tell whether it's save to pass it to a child component or not.
+
+  ```javascript
+  // Example from book
+
+  const Component = () => {
+    const { submit } = useForm();
+
+    return <ChildMemo onChanges={submit} />;
+  };
+  ```
+
+<a id="react-memo-and-children"></a>
+
+### React.Memo and children
+
+In previous chapter, we've seen author mentioned that we can use `children` as props, usually we need to create a component and use it like an open and close tag, like below:
+
+```javascript
+<ModalDialog>
+  <div>Content</div>
+</ModalDialog>
+```
+
+What if we don't want to re-render `<ModalDialog>`, maybe we can use `React.memo` to wrap it ?
+
+```javascript
+const ModalDialog = memo(child);
+
+<ModalDialog>
+  <div>Content</div>
+</ModalDialog>;
 ```
