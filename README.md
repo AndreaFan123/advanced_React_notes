@@ -849,13 +849,15 @@ export default function App() {
 Let's use **profiler** to check what causes re-render.
 
 #### render props
-  ![render-props](./screenshots/render-props-rerender.png)
 
-  Only `MouseTracker` causes re-render.
+![render-props](./screenshots/render-props-rerender.png)
+
+Only `MouseTracker` causes re-render.
 
 #### hooks
-  ![hooks](./screenshots/custom-hook-rerender.png)
-  `App` causes re-render.
+
+![hooks](./screenshots/custom-hook-rerender.png)
+`App` causes re-render.
 
 <a id="memoization-with-usememo-usecallback-and-reactmemo"></a>
 
@@ -1233,12 +1235,109 @@ In previous chapter, we've seen author mentioned that we can use `children` as p
 </ModalDialog>
 ```
 
-What if we don't want to re-render `<ModalDialog>`, maybe we can use `React.memo` to wrap it ?
+Think about this, if we use `memo` to wrap some component, and pass as `children` to another component, will it trigger re-render? Let's see an example.
 
 ```javascript
 const ModalDialog = memo(child);
 
-<ModalDialog>
-  <div>Content</div>
-</ModalDialog>;
+const Component = () => {
+  return (
+    <ModalDialog>
+      <div>Text here </div>
+    </ModalDialog>;
+  )
+}
+```
+
+or we can write it this way,
+
+```javascript
+const Component = () => {
+  return <ModalDialog children={<div>Text here</div>} />;
+};
+```
+
+#### children as props
+
+Remember that `JSX` is a syntax sugar for `React.createElement`, from the code above, we were just creating an object like this:
+
+```javascript
+const Component = () => {
+  return React.createElement(
+    ModalDialog,
+    null,
+    React.createElement("div", null, "Text here")
+  );
+};
+```
+
+Let's breakdown the second `React.createElement`, it's actually creating an object like this:
+
+```javascript
+{
+  type: "div",
+  props: {
+    children: "Text here",
+  },
+}
+```
+
+Let's go back to our code example, we have a `<ModalDialog/>` component that was wrapped in `memo`, **but it had a prop without memorized it**, and we all know that **object comparison is compared by reference**, so it will always be different, and it will always trigger re-render.
+
+How to fix this? We need to use `memo` to wrap the `children` as well.
+
+```javascript
+const ModalDialog = memo(child);
+
+const Component = () => {
+  const content = useMemo(() => <div>Text here</div>, []);
+
+  return <ModalDialog children={content} />;
+};
+
+// or
+
+const Component = () => {
+  const content = useMemo(() => <div>Text here</div>, []);
+
+  return (
+    <ModalDialog>
+      <div>{content}</div>
+    </ModalDialog>
+  );
+};
+```
+
+Same approach applies to **render as prop**
+
+```javascript
+const ModalDialog = memo(child);
+
+const Component = () => {
+  return <ModalDialog render={() => <div>Text here</div>}></ModalDialog>;
+};
+```
+
+We need to use `memo` to wrap the `render` function as well.
+
+```javascript
+const ModalDialog = memo(child);
+
+const Component = () => {
+  const content = useMemo(() => () => <div>Text here</div>, []);
+
+  return <ModalDialog render={() => content}></ModalDialog>;
+};
+```
+
+Since `render as props` is nothing but a function, we can use `useCallback` to wrap it.
+
+```javascript
+const ModalDialog = memo(child);
+
+const Component = () => {
+  const content = useCallback(() => <div>Text here</div>, []);
+
+  return <ModalDialog render={content}></ModalDialog>;
+};
 ```
