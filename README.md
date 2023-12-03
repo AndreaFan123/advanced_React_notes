@@ -43,6 +43,8 @@
     - [What is deep equality?](#what-is-deep-equality)
   - [Three rules of using React.Memo](#three-rules-of-using-react-memo)
   - [React.Memo and children](#react-memo-and-children)
+    - [Wrap children as prop with memo](#wrap-children-as-prop-with-memo)
+    - [Wrap render as prop with useCallback](#wrap-render-as-prop-with-usecallback)
 
 <a id="intro-to-re-renders"></a>
 
@@ -1257,7 +1259,9 @@ const Component = () => {
 };
 ```
 
-#### children as props
+<a id="wrap-children-as-prop-with-memo"></a>
+
+#### Wrap children as props with memo
 
 Remember that `JSX` is a syntax sugar for `React.createElement`, from the code above, we were just creating an object like this:
 
@@ -1329,6 +1333,10 @@ const Component = () => {
   return <ModalDialog render={() => content}></ModalDialog>;
 };
 ```
+
+<a id="wrap-render-as-prop-with-usecallback"></a>
+
+#### Wrap render as prop with useCallback
 
 Since `render as props` is nothing but a function, we can use `useCallback` to wrap it.
 
