@@ -45,6 +45,8 @@
   - [React.Memo and children](#react-memo-and-children)
     - [Wrap children as prop with memo](#wrap-children-as-prop-with-memo)
     - [Wrap render as prop with useCallback](#wrap-render-as-prop-with-usecallback)
+- [Chapter 6: Deep dive into diffing and reconciliation](#deep-dive-into-diffing-and-reconciliation)
+  - [Diffing and reconciliation](#diffing-and-reconciliation)
 
 <a id="intro-to-re-renders"></a>
 
@@ -1345,7 +1347,219 @@ const ModalDialog = memo(child);
 
 const Component = () => {
   const content = useCallback(() => <div>Text here</div>, []);
+]
 
   return <ModalDialog render={content}></ModalDialog>;
 };
 ```
+
+<a id="chapter-6-deep-dive-into-diffing-and-reconciliation"></a>
+
+## Chapter 6: Deep dive into diffing and reconciliation
+
+### Fresh memory
+
+- `React.createElement`: Creates an object that has its properties
+
+  - When we write something like `const something = <Component/>`, we are actually creating an object like this:
+
+    ```javascript
+    const something = React.createElement(Component, null);
+    ```
+
+    Let's be more specific, let's say I have a component like this:
+
+    ```javascript
+    const Component = () => {
+      return <div>Text here</div>;
+    };
+
+    // The code above is equivalent to this:
+
+    const Component = () => {
+      return React.createElement("div", null, "Text here");
+    };
+    ```
+
+  - `React.createElement` creates an object like this, and the `JSX` is just a syntax sugar that is transformed into `React.createElement` function.
+
+    ```javascript
+    {
+      type: "div",
+      props: {
+        children: "Text here",
+      },
+    }
+    ```
+
+- Object is compared by reference:
+  - If the reference to the object itself changes between re-renders,and its `type` remains the same and component in `type` is not memoized, React will re-render the component.
+
+### Does this re-render?
+
+```javascript
+// Create a form with a checkbox, if user clicks checkbox, show input field, otherwise show another component.
+
+const Form = () => {
+  const [showInput, setShowInput] = useState(false);
+
+  const handleChange = () => {
+    setShowInput((prev) => !prev);
+  };
+
+  return (
+    <div>
+      <label>
+        <input type="checkbox" onChange={handleChange} />
+        Show input
+      </label>
+      {showInput ? <input /> : <OtherComponent />}
+    </div>
+  );
+};
+```
+
+```javascript
+// Create a form with a checkbox, if user clicks checkbox, show input field with placeholder company id, otherwise show another input with personal id
+
+const Form = () => {
+  const [showInput, setShowInput] = useState(false);
+
+  const handleChange = () => {
+    setShowInput((prev) => !prev);
+  };
+
+  return (
+    <div>
+      <label>
+        <input type="checkbox" onChange={handleChange} />
+        Show input
+      </label>
+      {showInput ? (
+        <input placeholder="Company ID" />
+      ) : (
+        <input placeholder="Personal ID" />
+      )}
+    </div>
+  );
+};
+```
+
+<a id="deep-dive-into-diffing-and-reconciliation"></a>
+
+## Chapter 6: Deep dive into diffing and reconciliation
+
+### Fresh memory
+
+- `React.createElement`: Creates an **object** that has its properties.
+
+  - When we write something like `const something = <Component/>`, we are actually creating an object like this:
+
+    ```javascript
+    const something = React.createElement(Component, null);
+    ```
+
+    Let's be more specific, let's say I have a component like this:
+
+    ```javascript
+    const Component = () => {
+      return <div>Text here</div>;
+    };
+
+    // The code above is equivalent to this:
+
+    const Component = () => {
+      return React.createElement("div", null, "Text here");
+    };
+    ```
+
+  - `React.createElement` creates an object, and the `JSX` is just a syntax sugar that is transformed into `React.createElement` function.
+
+    ```javascript
+    {
+      type: "div",
+      props: {
+        children: "Text here",
+      },
+    }
+    ```
+
+  - **Object is compared by reference:**
+    - If the reference to the object itself changes between re-renders,and its `type` remains the same and component in `type` is not memoized, React will re-render the component.
+
+### Does this re-render?
+
+Code example is from the book, highly recommend to [buy the book](https://advanced-react.com/#must).
+
+Let's say we have a form that requires user to check if they are a company or a person, and based on the checkbox.
+
+```javascript
+// Form.tsx
+export const Form = () => {
+  const [isCompany, setIsCompany] = useState(false);
+
+  return (
+    <div>
+      <label style={{ fontSize: "1.3rem" }} htmlFor="is-company">
+        Is company
+      </label>
+      <input
+        type="checkbox"
+        id="is-company"
+        checked={isCompany}
+        onChange={() => setIsCompany(!isCompany)}
+      />
+      {isCompany ? (
+        <Input id="company-id" placeholder="Company Id" />
+      ) : (
+        <TextPlaceholder />
+      )}
+    </div>
+  );
+};
+```
+
+### Question: If we type something in the input field, and then uncheck the checkbox, will the input field be cleared?
+
+<details>
+  <summary>Answer</summary>
+  
+  The answer is Yes, because the `Form` component will be re-rendered. When `isCompany` is `true`, it means the `Input` component would be mounted, and `<TextPlaceholder/>` would be unmounted, but when we unchecked the checkbox, `isCompany` will be `false`, and `<TextPlaceholder/>` would be mounted, and `<Input/>` would be unmounted, and since `<Input/>` is unmounted, the input field will be cleared.
+
+![](./screenshots//ezgif.com-video-to-gif.gif)
+
+</details>
+
+Now, we want to let user to type their personal id as well, let's modify the code a little bit.
+
+```javascript
+export const Form = () => {
+  const [isCompany, setIsCompany] = useState(true);
+
+  return (
+    <div>
+      ...
+      {isCompany ? (
+        <Input id="company-id" placeholder="Company Id" />
+      ) : (
+        <Input id="personal-id" placeholder="Personal Id" />
+      )}
+    </div>
+  );
+};
+```
+
+### Question: If we type something in the input field, and then uncheck the checkbox, will the input field be cleared?
+
+<details>
+  <summary>Answer</summary>
+  
+  The answer is No, but why?
+
+![](<./screenshots/ezgif.com-video-to-gif%20(1).gif>)
+
+</details>
+
+<a id="diffing-and-reconciliation"></a>
+
+### Diffing and reconciliation
