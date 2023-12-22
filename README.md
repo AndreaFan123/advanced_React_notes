@@ -1395,7 +1395,9 @@ const Component = () => {
 - Object is compared by reference:
   - If the reference to the object itself changes between re-renders,and its `type` remains the same and component in `type` is not memoized, React will re-render the component.
 
-### Does this re-render?
+<a id="does-these-codes-re-render"></a>
+
+### Does these codes re-render
 
 ```javascript
 // Create a form with a checkbox, if user clicks checkbox, show input field, otherwise show another component.
@@ -1413,7 +1415,7 @@ const Form = () => {
         <input type="checkbox" onChange={handleChange} />
         Show input
       </label>
-      {showInput ? <input /> : <OtherComponent />}
+      {showInput ? <Input /> : <OtherComponent />}
     </div>
   );
 };
@@ -1436,9 +1438,9 @@ const Form = () => {
         Show input
       </label>
       {showInput ? (
-        <input placeholder="Company ID" />
+        <Input placeholder="Company ID" />
       ) : (
-        <input placeholder="Personal ID" />
+        <Input placeholder="Personal ID" />
       )}
     </div>
   );
@@ -1446,78 +1448,6 @@ const Form = () => {
 ```
 
 <a id="deep-dive-into-diffing-and-reconciliation"></a>
-
-## Chapter 6: Deep dive into diffing and reconciliation
-
-### Fresh memory
-
-- `React.createElement`: Creates an **object** that has its properties.
-
-  - When we write something like `const something = <Component/>`, we are actually creating an object like this:
-
-    ```javascript
-    const something = React.createElement(Component, null);
-    ```
-
-    Let's be more specific, let's say I have a component like this:
-
-    ```javascript
-    const Component = () => {
-      return <div>Text here</div>;
-    };
-
-    // The code above is equivalent to this:
-
-    const Component = () => {
-      return React.createElement("div", null, "Text here");
-    };
-    ```
-
-  - `React.createElement` creates an object, and the `JSX` is just a syntax sugar that is transformed into `React.createElement` function.
-
-    ```javascript
-    {
-      type: "div",
-      props: {
-        children: "Text here",
-      },
-    }
-    ```
-
-  - **Object is compared by reference:**
-    - If the reference to the object itself changes between re-renders,and its `type` remains the same and component in `type` is not memoized, React will re-render the component.
-
-### Does this re-render?
-
-Code example is from the book, highly recommend to [buy the book](https://advanced-react.com/#must).
-
-Let's say we have a form that requires user to check if they are a company or a person, and based on the checkbox.
-
-```javascript
-// Form.tsx
-export const Form = () => {
-  const [isCompany, setIsCompany] = useState(false);
-
-  return (
-    <div>
-      <label style={{ fontSize: "1.3rem" }} htmlFor="is-company">
-        Is company
-      </label>
-      <input
-        type="checkbox"
-        id="is-company"
-        checked={isCompany}
-        onChange={() => setIsCompany(!isCompany)}
-      />
-      {isCompany ? (
-        <Input id="company-id" placeholder="Company Id" />
-      ) : (
-        <TextPlaceholder />
-      )}
-    </div>
-  );
-};
-```
 
 ### Question: If we type something in the input field, and then uncheck the checkbox, will the input field be cleared?
 
@@ -1563,3 +1493,138 @@ export const Form = () => {
 <a id="diffing-and-reconciliation"></a>
 
 ### Diffing and reconciliation
+
+In React, there's a so called **Virtual DOM**, this is why we don't have to worry about the DOM manipulation, React will do it for us.
+
+Like we have mentioned before, component is an object, we use `React.createElement` to create an object, and React will compare the value of the object,but it's not ideal to just "remove" the previous value, therefore React will use its **diff** algorithm to compare the previous and the new value, and then update to the DOM.
+
+### What is Virtual DOM?
+
+![React virtual dom](./screenshots/virtual-dom.png)
+(image is from [here](https://medium.com/react2react/react-the-story-of-virtual-dom-1059095de6a))
+
+- **Virtual DOM:**
+  A virtual DOM is a lightweight JavaScript object that originally is just the copy of the real DOM. It is a node tree that lists the elements, their attributes and content as Objects and their properties.
+
+Let's say we have code like below:
+
+```javascript
+const Input = () => {
+  return (
+    <div>
+      <label htmlFor="company-id">Company ID</label>
+      <input id="company-id" />
+    </div>
+  );
+};
+
+const SomeComponent = () => {
+  return <Input />;
+};
+```
+
+### Question: What will be the value of the Virtual DOM?
+
+<details>
+<summary>Expend to see more</summary>
+
+```javascript
+const Input = () => {
+  return (
+    <div>
+      <label htmlFor="company-id">Company ID</label>
+      <input id="company-id" />
+    </div>
+  );
+};
+
+const SomeComponent = () => {
+  return <Input />;
+};
+
+// In virtual dom
+
+{
+  type: Input,
+  props: {
+    children: [
+      {
+        type: "div",
+        props: {
+          children: [
+            {
+              type: "label",
+              props: {
+                htmlFor: "company-id",
+                children: "Company ID",
+              },
+            },
+            {
+              type: "input",
+              props: {
+                id: "company-id",
+              },
+            },
+          ],
+        },
+      },
+    ],
+  },
+};
+```
+
+</details>
+
+So that's go back to the example before [Does these codes re-render](#does-these-codes-re-render).
+
+```javascript
+const Form = () => {
+  ...
+  return (
+    <div>
+      <label>
+        <input type="checkbox" onChange={handleChange} />
+        Show input
+      </label>
+      {showInput ? <Input /> : <OtherComponent />}
+    </div>
+  );
+};
+```
+
+```javascript
+const Form = () => {
+  ...
+   return (
+    <div>
+      <label>
+        <Input type="checkbox" onChange={handleChange} />
+        Show input
+      </label>
+      {showInput ? (
+        <Input placeholder="Company ID" />
+      ) : (
+        <Input placeholder="Personal ID" />
+      )}
+    </div>
+  )
+}
+```
+
+If the type is the same like code example 2, they both are `Input`, but when we click the checkbox, the field will not be cleared, because React compares the type and other props, only the `placeholder` prop is changed, the it will update in the virtual DOM and then update to the DOM.
+
+On the other hand, if the type is different like code example 1, they are `Input` and `OtherComponent`, when we click checkbox, the type is different, then React will unmount the `<Input/>` and remove everything from the DOM, and mount `<OtherComponent/>` to the DOM.
+
+### Extend the concept
+
+Think about the code below:
+
+```javascript
+const SomeComponent = () => {
+  const Input = () => <input />;
+
+  return <Input />;
+};
+```
+
+This will cause re-render, because `Input` is created every time the component re-renders, React will compare the reference of the object, even the type is the same, but the reference is different, so it will re-render, therefore **we need to avoid to create a component inside of another component**.
