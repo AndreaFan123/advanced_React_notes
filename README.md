@@ -1425,19 +1425,19 @@ const Form = () => {
 // Create a form with a checkbox, if user clicks checkbox, show input field with placeholder company id, otherwise show another input with personal id
 
 const Form = () => {
-  const [showInput, setShowInput] = useState(false);
+  const [isCompany, setIsCompany] = useState(false);
 
   const handleChange = () => {
-    setShowInput((prev) => !prev);
+    setIsCompany(!isCompany);
   };
 
   return (
     <div>
       <label>
         <input type="checkbox" onChange={handleChange} />
-        Show input
+        Enter ID
       </label>
-      {showInput ? (
+      {isCompany ? (
         <Input placeholder="Company ID" />
       ) : (
         <Input placeholder="Personal ID" />
@@ -1628,3 +1628,159 @@ const SomeComponent = () => {
 ```
 
 This will cause re-render, because `Input` is created every time the component re-renders, React will compare the reference of the object, even the type is the same, but the reference is different, so it will re-render, therefore **we need to avoid to create a component inside of another component**.
+
+<a id="reconciliation-and-arrays"></a>
+
+In summary, React will compare the type and props of the object, and then decide to if it has to **re-render** or **re-mounting**, and from the example below, since the type is the same, React will only re-render and update the data.
+
+```javascript
+const Checkbox = ({ onCheck }) => {
+  return <input type="checkbox" onChange={onCheck} />;
+};
+
+const Form = () => {
+  const [isCompany, setIsCompany] = useState(false);
+
+  const handleChange = () => {
+    setIsCompany(!isCompany);
+  };
+
+  return (
+    <div>
+      <Checkbox onCheck={handleChange} />
+      {isCompany ? (
+        <Input placeholder="Company ID" />
+      ) : (
+        <Input placeholder="Personal ID" />
+      )}
+    </div>
+  );
+};
+```
+
+It might be good to see what has been typed in the input field and not disappeared when we uncheck the checkbox, but ideally, we want to clear the input field when we uncheck the checkbox, because these are two different inputs with different purposes.
+
+<a id="reconciliation-and-arrays"></a>
+
+### Reconciliation and arrays
+
+If we take the code example above, it would be like this:
+
+```javascript
+[
+  {
+    type: Checkbox,
+    props: {
+      onCheck: handleChange,
+    },
+  },
+  {
+    type: Input,
+    props: {
+      placeholder: isCompany ? "Company ID" : "Personal ID",
+    },
+  },
+];
+```
+
+When we check the checkbox, React will go through it and compare the state and value, so the flow would be :
+
+During initial render:
+
+- `isCompany` is `false`, so `placeholder` is `Personal ID`.
+
+When we check the checkbox:
+
+- `isCompany` is `true`, type of `<Checkbox/>` and `<Input/>` are the same, so React will only re-render and update the `placeholder` to `Company ID`.
+
+When we uncheck the checkbox:
+
+- `isCompany` is `false`, so `placeholder` is `Personal ID`, type of `<Checkbox/>` and `<Input/>` are the same, so React will only update the `placeholder` to `Personal ID`
+
+The `<Input/>` was not unmounted but only updated placeholder, the input field will not be cleared.
+
+We can tweak the code a little bit to make the input field cleared when we uncheck the checkbox.
+
+```javascript
+const Checkbox = ({ onCheck }) => {
+  return <input type="checkbox" onChange={onCheck} />;
+};
+
+const Form = () => {
+  const [isCompany, setIsCompany] = useState(false);
+
+  const handleChange = () => {
+    setIsCompany(!isCompany);
+  };
+
+  return (
+    <div>
+      <Checkbox onCheck={handleChange} />
+      {isCompany ? <Input placeholder="Enter Company ID" /> : null}
+      {!isCompany ? <Input placeholder="Enter Personal ID" /> : null}
+    </div>
+  );
+};
+```
+
+The initial rendering would be:
+
+```javascript
+[
+  {
+    type: Checkbox,
+    props: {
+      onCheck: handleChange,
+    },
+  },
+  null,
+  {
+    type: Input,
+    props: {
+      placeholder: "Enter Personal ID",
+    },
+  },
+];
+```
+
+When we check the checkbox:
+
+```javascript
+[
+  {
+    type: Checkbox,
+    props: {
+      onCheck: handleChange,
+    },
+  },
+  {
+    type: Input,
+    props: {
+      placeholder: "Enter Company ID",
+    },
+  },
+  null,
+];
+```
+
+When we uncheck the checkbox:
+
+```javascript
+[
+  {
+    type: Checkbox,
+    props: {
+      onCheck: handleChange,
+    },
+  },
+  null,
+  {
+    type: Input,
+    props: {
+      placeholder: "Enter Personal ID",
+    },
+  },
+];
+```
+
+The `<Input/>` was unmounted and mounted, the input field will be cleared.
