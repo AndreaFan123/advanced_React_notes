@@ -45,7 +45,7 @@
   - [React.Memo and children](#react-memo-and-children)
     - [Wrap children as prop with memo](#wrap-children-as-prop-with-memo)
     - [Wrap render as prop with useCallback](#wrap-render-as-prop-with-usecallback)
-- [Chapter 6: Deep dive into diffing and reconciliation](#deep-dive-into-diffing-and-reconciliation)
+- [Chapter 6: Deep dive into diffing and reconciliation](#chapter-6-deep-dive-into-diffing-and-reconciliation)
   - [Diffing and reconciliation](#diffing-and-reconciliation)
   - [What is virtual DOM?](#what-is-virtual-dom)
   - [Reconciliation and arrays](#reconciliation-and-arrays)
@@ -1796,8 +1796,7 @@ Without it, when we reorganize a list of items, and if items have its state, val
 
 ![re-order-input](./screenshots/re-order-input.png)
 
-> [!IMPORTANT]
-> **Key** won't be able to prevent re-render, its job is to help React to identify which existing instance it should **re-use** when it re-renders.If we want to prevent re-render, we need to use `React.memo` to wrap the component.
+> [!IMPORTANT] > **Key** won't be able to prevent re-render, its job is to help React to identify which existing instance it should **re-use** when it re-renders.If we want to prevent re-render, we need to use `React.memo` to wrap the component.
 > For array that is static, we can use index or id that was given as key, but for dynamic array, we need to use unique identifier as key.
 
 ```javascript
