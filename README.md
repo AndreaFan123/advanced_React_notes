@@ -1796,8 +1796,8 @@ Without it, when we reorganize a list of items, and if items have its state, val
 
 ![re-order-input](./screenshots/re-order-input.png)
 
-> [!IMPORTANT] > **Key** won't be able to prevent re-render, its job is to help React to identify which existing instance it should **re-use** when it re-renders.If we want to prevent re-render, we need to use `React.memo` to wrap the component.
-
+> [!IMPORTANT]
+> **Key** won't be able to prevent re-render, its job is to help React to identify which existing instance it should **re-use** when it re-renders.If we want to prevent re-render, we need to use `React.memo` to wrap the component.
 > For array that is static, we can use index or id that was given as key, but for dynamic array, we need to use unique identifier as key.
 
 ```javascript
@@ -1847,7 +1847,6 @@ export default function App() {
 
 > [!CAUTION]
 > Use index as a key for a dynamic array is not recommend and it can cause unexpected behavior, like the example below:
-
 > This is because React reuses the input components based on their keys, which haven't changed, leading to a mismatch between the data and the UI representation.
 
 ```javascript
