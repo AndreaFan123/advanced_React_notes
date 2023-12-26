@@ -47,6 +47,9 @@
     - [Wrap render as prop with useCallback](#wrap-render-as-prop-with-usecallback)
 - [Chapter 6: Deep dive into diffing and reconciliation](#deep-dive-into-diffing-and-reconciliation)
   - [Diffing and reconciliation](#diffing-and-reconciliation)
+  - [What is virtual DOM?](#what-is-virtual-dom)
+  - [Reconciliation and arrays](#reconciliation-and-arrays)
+  - [Reconciliation and keys](#reconciliation-and-keys)
 
 <a id="intro-to-re-renders"></a>
 
@@ -1447,8 +1450,6 @@ const Form = () => {
 };
 ```
 
-<a id="deep-dive-into-diffing-and-reconciliation"></a>
-
 ### Question: If we type something in the input field, and then uncheck the checkbox, will the input field be cleared?
 
 <details>
@@ -1498,7 +1499,9 @@ In React, there's a so called **Virtual DOM**, this is why we don't have to worr
 
 Like we have mentioned before, component is an object, we use `React.createElement` to create an object, and React will compare the value of the object,but it's not ideal to just "remove" the previous value, therefore React will use its **diff** algorithm to compare the previous and the new value, and then update to the DOM.
 
-### What is Virtual DOM?
+<a id="what-is-virtual-dom"></a>
+
+#### What is Virtual DOM?
 
 ![React virtual dom](./screenshots/virtual-dom.png)
 (image is from [here](https://medium.com/react2react/react-the-story-of-virtual-dom-1059095de6a))
@@ -1523,7 +1526,7 @@ const SomeComponent = () => {
 };
 ```
 
-### Question: What will be the value of the Virtual DOM?
+#### Question: What will be the value of the Virtual DOM?
 
 <details>
 <summary>Expend to see more</summary>
@@ -1628,8 +1631,6 @@ const SomeComponent = () => {
 ```
 
 This will cause re-render, because `Input` is created every time the component re-renders, React will compare the reference of the object, even the type is the same, but the reference is different, so it will re-render, therefore **we need to avoid to create a component inside of another component**.
-
-<a id="reconciliation-and-arrays"></a>
 
 In summary, React will compare the type and props of the object, and then decide to if it has to **re-render** or **re-mounting**, and from the example below, since the type is the same, React will only re-render and update the data.
 
@@ -1784,3 +1785,158 @@ When we uncheck the checkbox:
 ```
 
 The `<Input/>` was unmounted and mounted, the input field will be cleared.
+
+<a id="reconciliation-and-keys"></a>
+
+### Reconciliation and keys
+
+The **key** is a unique identifier that helps React identify which items have changed, are added, or are removed.
+
+Without it, when we reorganize a list of items, and if items have its state, value, or other props, React won't be able to identify which goes to which, like the graph below:
+
+![re-order-input](./screenshots/re-order-input.png)
+
+[!IMPORTANT]
+**Key** won't be able to prevent re-render, its job is to help React to identify which existing instance it should **re-use** when it re-renders.If we want to prevent re-render, we need to use `React.memo` to wrap the component.
+
+For array that is static, we can use index or id that was given as key, but for dynamic array, we need to use unique identifier as key.
+
+```javascript
+const information = [
+  {
+    id: "name",
+    lableText: "Name",
+    placeholder: "Enter your name",
+  },
+  {
+    id: "phone",
+    labelText: "Phone",
+    placeholder: "Enter your phone",
+  },
+  {
+    id: "address",
+    labelText: "Address",
+    placeholder: "Enter your address",
+  },
+];
+
+const Input = ({ labelText, placeholder }) => {
+  return (
+    <>
+      <label htmlFor={labelText}>{labelText}</label>
+      <input placeholder={placeholder} />
+    </>
+  );
+};
+
+export default function App() {
+  const InputMemo = memo(Input);
+
+  return (
+    <>
+      {information.map((info) => (
+        <InputMemo
+          key={info.id}
+          labelText={info.labelText}
+          placeholder={info.placeholder}
+        />
+      ))}
+    </>
+  );
+}
+```
+
+[!CAUTION]
+Use index as a key for a dynamic array is not recommend and it can cause unexpected behavior, like the example below:
+
+This is because React reuses the input components based on their keys, which haven't changed, leading to a mismatch between the data and the UI representation.
+
+```javascript
+import { useState } from "react";
+
+export default function App() {
+  const [items, setItems] = useState(["Apple", "Banana", "Cherry"]);
+
+  const shuffleItems = () => {
+    const newItems = [...items];
+    newItems.sort(() => Math.random() - 0.5);
+    setItems(newItems);
+  };
+
+  return (
+    <div>
+      {items.map((item, index) => (
+        <div key={index}>
+          <input defaultValue={item} />
+        </div>
+      ))}
+      <button onClick={shuffleItems}>Shuffle Items</button>
+    </div>
+  );
+}
+```
+
+![index-as-key](./screenshots/index-as-key.gif)
+
+Let's go back to the previous example: We can simply to add a key to the `<Input/>` so that React will tell which one is which, therefore we can clear the input field when we uncheck the checkbox, this is also called **State reset**.
+
+```javascript
+const Form = () => {
+  ...
+   return (
+    <div>
+      <label>
+        <Input type="checkbox" onChange={handleChange} />
+        Show input
+      </label>
+      {showInput ? (
+        <Input placeholder="Company ID" key="company-id"/>
+      ) : (
+        <Input placeholder="Personal ID" key="personal-id"/>
+      )}
+    </div>
+  )
+}
+```
+
+<a id="using-key-to-force-reuse-of-an-existing-element"></a>
+
+### Using key to force reuse of an existing element
+
+Take the previous code example:
+
+```javascript
+const Checkbox = ({ onCheck }) => {
+  return <input type="checkbox" onChange={onCheck} />;
+};
+
+const Form = () => {
+  const [isCompany, setIsCompany] = useState(false);
+
+  const handleChange = () => {
+    setIsCompany(!isCompany);
+  };
+
+  return (
+    <div>
+      <Checkbox onCheck={handleChange} />
+      {isCompany ? <Input placeholder="Enter Company ID" /> : null}
+      {!isCompany ? <Input placeholder="Enter Personal ID" /> : null}
+    </div>
+  );
+};
+```
+
+We already know that the `<Input/>` would be unmounted and mounted, but what if we want to keep the input field value when we uncheck the checkbox? Just add same keys to each `<Input/>`, then it will only re-render and update the placeholder.
+
+```javascript
+  ...
+  return (
+    <div>
+      <Checkbox onCheck={handleChange} />
+      {isCompany ? <Input placeholder="Enter Company ID" key="id"/> : null}
+      {!isCompany ? <Input placeholder="Enter Personal ID" key="id"/> : null}
+    </div>
+  );
+};
+```
