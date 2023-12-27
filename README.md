@@ -51,6 +51,7 @@
   - [Reconciliation and arrays](#reconciliation-and-arrays)
   - [Reconciliation and keys](#reconciliation-and-keys)
   - [Dynamic array and normal elements together](#dynamic-array-and-normal-elements-together)
+- [Chapter 7: HOC](#chapter-7-hoc)
 
 <a id="intro-to-re-renders"></a>
 
@@ -1984,3 +1985,17 @@ When we have a component that contains both dynamic array and normal elements, R
 ```
 
 So even if we add more items to the dynamic array, the normal element will be at the same position, and React will only re-render the dynamic array, and no re-mounting to the normal element.
+
+<a id="chapter-7-hoc"></a>
+
+## Chapter 7: HOC
+
+<a id="what-is-hoc"></a>
+
+### What is HOC?
+
+**HOC** stands for **Higher Order Component**, it is a function that takes a component and returns a new component.
+
+```javascript
+const
+```
