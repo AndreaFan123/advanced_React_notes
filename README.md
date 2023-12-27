@@ -50,6 +50,7 @@
   - [What is virtual DOM?](#what-is-virtual-dom)
   - [Reconciliation and arrays](#reconciliation-and-arrays)
   - [Reconciliation and keys](#reconciliation-and-keys)
+  - [Dynamic array and normal elements together](#dynamic-array-and-normal-elements-together)
 
 <a id="intro-to-re-renders"></a>
 
@@ -1937,3 +1938,49 @@ We already know that the `<Input/>` would be unmounted and mounted, but what if 
   );
 };
 ```
+
+<a id="dynamic-array-and-normal-elements-together"></a>
+
+### Dynamic arrays and normal elements together
+
+```javascript
+const Component = () => {
+  return (
+    <>
+      {data.map((item) => (
+        <Input id={item.id} key={item.id} />
+      ))}
+      <Input id="3" />
+    </>
+  );
+};
+```
+
+When we have a component that contains both dynamic array and normal elements, React will see them as below:
+
+```javascript
+[
+  [
+    {
+      type: Input,
+      props: {
+        id: "1",
+      },
+    },
+    {
+      type: Input,
+      props: {
+        id: "2",
+      },
+    },
+  ],
+  {
+    type: Input,
+    props: {
+      id: "3",
+    },
+  },
+];
+```
+
+So even if we add more items to the dynamic array, the normal element will be at the same position, and React will only re-render the dynamic array, and no re-mounting to the normal element.
