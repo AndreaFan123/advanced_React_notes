@@ -51,7 +51,7 @@
   - [Reconciliation and arrays](#reconciliation-and-arrays)
   - [Reconciliation and keys](#reconciliation-and-keys)
   - [Dynamic array and normal elements together](#dynamic-array-and-normal-elements-together)
-- [Chapter 7: HOC](#chapter-7-hoc)
+- [Chapter 7: React Context and Performance](#chapter-7-React-context-and-performance)
 
 <a id="intro-to-re-renders"></a>
 
@@ -1986,16 +1986,104 @@ When we have a component that contains both dynamic array and normal elements, R
 
 So even if we add more items to the dynamic array, the normal element will be at the same position, and React will only re-render the dynamic array, and no re-mounting to the normal element.
 
-<a id="chapter-7-hoc"></a>
+<a id="chapter-7-React-context-and-performance"></a>
 
-## Chapter 7: HOC
+## Chapter 7: React context and performance
 
-<a id="what-is-hoc"></a>
+<a id="what-is-the-purpose-of-using-context"></a>
 
-### What is HOC?
+### What is the purpose of using context?
 
-**HOC** stands for **Higher Order Component**, it is a function that takes a component and returns a new component.
+- Context is designed to share data that can be considered “global” for a tree of React components, such as the current authenticated user, theme, or preferred language.
+- Context is primarily used when some data needs to be accessible by many components at different nesting levels. Apply it sparingly because it makes component reuse more difficult.
+
+In short, context can prevent prop drilling.
+
+<a id="how-to-use-context"></a>
+
+### How to use context?
+
+- Create a context object by calling `React.createContext()`
 
 ```javascript
-const
+import { createContext } from "react";
+
+// Here the parameter is the default value of the context, it can be null if you don't want to set a default value.
+const ThemeContext = createContext("light");
+```
+
+- Here `createContext()` returns a context object.
+
+  - `SomeContext.provider`: Provide the value to the components.
+  - ` SomeContext.Consumer()` or `useContext() `: To read the context value.
+
+  > [!IMPORTANT]
+  > In modern React, use `useContenx()` is recommended.
+
+```javascript
+// use Provider to provide the value to the components
+const App = () => {
+  const [theme, setTheme] = useState("light");
+
+  return (
+    <ThemeContext.Provider value={theme}>
+      <Toolbar />
+    </ThemeContext.Provider>
+  );
+};
+```
+
+```javascript
+// Use useContext() to read the context value
+
+const Toolbar = () => {
+  const theme = useContext(ThemeContext);
+
+  return (
+    <div>
+      <button className={theme}>Light</button>
+    </div>
+  );
+};
+```
+
+<a id="before-using-context"></a>
+
+### Before using context
+
+Three things need to be considered before using context:
+
+1. Context consumers will re-render when the value on the `Provider` changes.
+2. All of them will re-render, even if they don't use the part of the value changed.
+3. Re-renders mentioned above can't be prevented with memoization.
+
+<a id="context-value-changes"></a>
+
+#### Context value changes
+
+In the situation when we have to move the `Provider` from the top to other middle level (normally, in small App, `Provider` sits the top level), and somehow its parent triggers re-render.
+
+```javascript
+// Assuming that we have this
+
+const Page = () => {
+  return (
+    <Layout>
+      <Sidebar />
+      <MainDashboard />
+    </Layout>
+  );
+};
+```
+
+And we decided to move the `Provider` to `Layout` component and we might want to track scrolling position, since in `<Layout/>` component, it's the **children as props** pattern, state is limited to itself, but the `<SomeContext.Provider value={someValue}>` is also inside of `<Layout/>`, so when we scroll, the value in the Provider will re-render as well,
+
+```javascript
+const Layout = () => {
+  return (
+    <SomeContext.Provider value={someValue}>
+      <div>{children}</div>
+    </SomeContext.Provider>
+  );
+};
 ```
