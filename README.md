@@ -2081,9 +2081,112 @@ And we decided to move the `Provider` to `Layout` component and we might want to
 ```javascript
 const Layout = () => {
   return (
-    <SomeContext.Provider value={someValue}>
+    <SomeComponentController>
       <div>{children}</div>
-    </SomeContext.Provider>
+    </SomeComponentController>
   );
 };
 ```
+
+We can fix this by using `useMemo` and `useCallback` to memoize the value passed to the provider, for example:
+
+```javascript
+const SomeComponentController = ({ children }) => {
+  // function
+  const someFunction = useCallback(() => {
+    // do something
+  }, []);
+
+  // value
+  const someValue = useMemo(() => {
+    // do something
+  }, []);
+
+  return <SomeContext.Provider value={value}>{children}</SomeContext.Provider>;
+};
+```
+
+---
+
+Let's emphasize this again, **all of them will re-render**, when we introduce more context consumers, even they don't depend on the state, they will re-render as well.
+
+```javascript
+const SomeComponentController = ({ children }) => {
+  // function
+  const someFunction = useCallback(() => {
+    // do something
+  }, []);
+
+  // value
+  const someValue = useMemo(() => {
+    return {
+      open,
+      close,
+      isExpanded,
+    };
+  }, [open, close, isExpanded]);
+
+  return <SomeContext.Provider value={value}>{children}</SomeContext.Provider>;
+};
+```
+
+And we try to use `open` in somewhere else, like below:
+
+```javascript
+const SomeComponent = () => {
+  const { open } = useContext(SomeContext);
+
+  return ...;
+};
+```
+
+This component will re-render when value on the Context provider changes, despite the `open` function does not change, and it won't work if we wrap it with `useCallback`.
+
+<a id="spliting-context">
+
+### Splitting context
+
+We can split the context into multiple contexts, to let them hold different values, and only the components that need to use the value will re-render and wrap the component like this:
+
+```javascript
+const SomeComponentController = ({ children }) => {
+
+  // Store values in ContextA
+  const ContextA = createContext(){
+    valueA: "valueA",
+    valueB: "valueB"
+  };
+
+  // Store functions in ContextB
+  const ContextB = createContext(){
+    open: () => {},
+    close: () => {}
+  };
+
+  export useContextA = () => useContext(ContextA);
+  export useContextB = () => useContext(ContextB);
+
+  return (
+    <ContextA.Provider value={value}>
+      <ContextB.Provider value={value}>{children}</ContextB.Provider>
+    </ContextA.Provider>
+  );
+};
+```
+
+And we can use it like this:
+
+```javascript
+const SomeComponent = () => {
+  const { valueA, valueB } = useContextA();
+  const { open, close } = useContextB();
+
+  return ...;
+};
+```
+
+<a id="reducers-and-split-provider"></a>
+
+### Reducers and split provider
+
+Previously, we talked about splitting context, but if somehow a function state depends on one of the contexts,
