@@ -51,6 +51,14 @@
   - [Reconciliation and arrays](#reconciliation-and-arrays)
   - [Reconciliation and keys](#reconciliation-and-keys)
   - [Dynamic array and normal elements together](#dynamic-array-and-normal-elements-together)
+- [Chapter 7: React Context and Performance](#chapter-7-React-context-and-performance)
+  - [What is the purpose of using context](#what-is-the-purpose-of-using-context)
+  - [How to use context](#how-to-use-context)
+  - [Before using context](#before-using-context)
+    - [Context value changes](#context-value-changes)
+  - [splitting Context](#splitting-context)
+  - [Reducers and split provider](#reducers-and-split-provider)
+  - [What is reducer?](#what-is-reducer)
 
 <a id="intro-to-re-renders"></a>
 
@@ -1984,3 +1992,389 @@ When we have a component that contains both dynamic array and normal elements, R
 ```
 
 So even if we add more items to the dynamic array, the normal element will be at the same position, and React will only re-render the dynamic array, and no re-mounting to the normal element.
+
+<a id="chapter-7-React-context-and-performance"></a>
+
+## Chapter 7: React context and performance
+
+<a id="what-is-the-purpose-of-using-context"></a>
+
+### What is the purpose of using context?
+
+- Context is designed to share data that can be considered “global” for a tree of React components, such as the current authenticated user, theme, or preferred language.
+- Context is primarily used when some data needs to be accessible by many components at different nesting levels. Apply it sparingly because it makes component reuse more difficult.
+
+In short, context can prevent prop drilling.
+
+---
+
+<a id="how-to-use-context"></a>
+
+### How to use context?
+
+- Create a context object by calling `React.createContext()`
+
+```javascript
+import { createContext } from "react";
+
+// Here the parameter is the default value of the context, it can be null if you don't want to set a default value.
+const ThemeContext = createContext("light");
+```
+
+- Here `createContext()` returns a context object.
+
+  - `SomeContext.provider`: Provide the value to the components.
+  - ` SomeContext.Consumer()` or `useContext() `: To read the context value.
+
+> [!IMPORTANT]
+> In modern React, use `useContenx()` is recommended.
+
+```javascript
+// use Provider to provide the value to the components
+const App = () => {
+  const [theme, setTheme] = useState("light");
+
+  return (
+    <ThemeContext.Provider value={theme}>
+      <Toolbar />
+    </ThemeContext.Provider>
+  );
+};
+```
+
+```javascript
+// Use useContext() to read the context value
+
+const Toolbar = () => {
+  const theme = useContext(ThemeContext);
+
+  return (
+    <div>
+      <button className={theme}>Light</button>
+    </div>
+  );
+};
+```
+
+---
+
+<a id="before-using-context"></a>
+
+### Before using context
+
+Three things need to be considered before using context:
+
+1. Context consumers will re-render when the value on the `Provider` changes.
+2. All of them will re-render, even if they don't use the part of the value changed.
+3. Re-renders mentioned above can't be prevented with memoization.
+
+<a id="context-value-changes"></a>
+
+#### Context value changes
+
+In the situation when we have to move the `Provider` from the top to other middle level (normally, in small App, `Provider` sits the top level), and somehow its parent triggers re-render.
+
+```javascript
+// Assuming that we have this
+
+const Page = () => {
+  return (
+    <Layout>
+      <Sidebar />
+      <MainDashboard />
+    </Layout>
+  );
+};
+```
+
+And we decided to move the `Provider` to `Layout` component and we might want to track scrolling position, since in `<Layout/>` component, it's the **children as props** pattern, state is limited to itself, but the `<SomeContext.Provider value={someValue}>` is also inside of `<Layout/>`, so when we scroll, the value in the Provider will re-render as well,
+
+```javascript
+const Layout = () => {
+  return (
+    <SomeComponentController>
+      <div>{children}</div>
+    </SomeComponentController>
+  );
+};
+```
+
+We can fix this by using `useMemo` and `useCallback` to memoize the value passed to the provider, for example:
+
+```javascript
+const SomeComponentController = ({ children }) => {
+  // function
+  const someFunction = useCallback(() => {
+    // do something
+  }, []);
+
+  // value
+  const someValue = useMemo(() => {
+    // do something
+  }, []);
+
+  return <SomeContext.Provider value={value}>{children}</SomeContext.Provider>;
+};
+```
+
+---
+
+Let's emphasize this again, **all of them will re-render**, when we introduce more context consumers, even they don't depend on the state, they will re-render as well.
+
+```javascript
+const SomeComponentController = ({ children }) => {
+  // function
+  const someFunction = useCallback(() => {
+    // do something
+  }, []);
+
+  // value
+  const someValue = useMemo(() => {
+    return {
+      open,
+      close,
+      isExpanded,
+    };
+  }, [open, close, isExpanded]);
+
+  return <SomeContext.Provider value={value}>{children}</SomeContext.Provider>;
+};
+```
+
+And we try to use `open` in somewhere else, like below:
+
+```javascript
+const SomeComponent = () => {
+  const { open } = useContext(SomeContext);
+
+  return ...;
+};
+```
+
+This component will re-render when value on the Context provider changes, despite the `open` function does not change, and it won't work if we wrap it with `useCallback`.
+
+---
+
+<a id="splitting-context"></a>
+
+### Splitting context
+
+We can split the context into multiple contexts, to let them hold different values, and only the components that need to use the value will re-render and wrap the component like this:
+
+```javascript
+const SomeComponentController = ({ children }) => {
+
+  // Store values in ContextA
+  const ContextA = createContext(){
+    valueA: "valueA",
+    valueB: "valueB"
+  };
+
+  // Store functions in ContextB
+  const ContextB = createContext(){
+    open: () => {},
+    close: () => {}
+  };
+
+  export useContextA = () => useContext(ContextA);
+  export useContextB = () => useContext(ContextB);
+
+  return (
+    <ContextA.Provider value={value}>
+      <ContextB.Provider value={value}>{children}</ContextB.Provider>
+    </ContextA.Provider>
+  );
+};
+```
+
+And we can use it like this:
+
+```javascript
+const SomeComponent = () => {
+  const { valueA, valueB } = useContextA();
+  const { open, close } = useContextB();
+
+  return ...;
+};
+```
+
+---
+
+<a id="reducers-and-split-provider"></a>
+
+### Reducers and split provider
+
+Previously, we talked about splitting context, but if somehow a function state depends on one of the contexts, let's say a `toggle` function which depends on `isOPen` state and we also have another context to stor `open` and `close` function.
+
+There're two ways we might be able to think of:
+
+1. Add it to the `open` and `close` context.
+2. Implement it manually
+
+But all of them are not ideal, for the first one, the function would actually depend on the state, and for the second one is not ideal because `toggle` should not be the case for developer to implement one by one.
+
+---
+
+<a id="what-is-recuder"></a>
+
+### What is `reducer`?
+
+`reducer` is a another way of managing state, we can implement this when we have a complex state that involves multiple sub-values, or when the next state depends on the previous one.
+
+#### How to use `reducer`?
+
+Three steps to migrate from `useState` to `useReducer`:
+
+1. **Move** from setting state to dispatching actions.
+2. **Write** a reducer function.
+3. **Use** the reducer from component.
+
+Let's take an example from the doc:
+
+#### Before implementing `reducer`, we would use `useState` like this:
+
+```javascript
+
+const initialState = [{...}]
+
+const App = () => {
+  const [tasks, setTasks] = useState(initialTasks);
+
+  // write functions here
+  const addTask = (text) => {...}
+  const removeTask = (id) => {...}
+  const toggleTask = (task) => {...}
+
+  return (
+    ...
+  )
+};
+```
+
+#### After implementing `reducer`, we would use `useReducer` like this:
+
+```javascript
+// Create a reducer function in another file
+
+export default TaskReducer(tasks, action) => {
+  switch(action.type) {
+    case "Added": {
+      return [
+        ...tasks,
+        {
+          id: action.id,
+          text: action.text,
+          completed: false
+        }
+      ]
+    },
+    case "Removed": {
+      return tasks.filter(task => task.id !== action.id)
+    },
+    case "Toggled": {
+      return tasks.map(task => {
+        if (task.id === action.id) {
+          return {...task, completed: !task.completed}
+        }
+        return task
+      })
+    },
+    default: {
+      return tasks
+    }
+  }
+}
+```
+
+Then use it in the component:
+
+```javascript
+
+import TaskReducer from "./TaskReducer";
+
+const initialState = [{...}]
+
+const App = () => {
+  const [tasks, dispatch] = useReducer(TaskReducer, initialState);
+
+  // dispatch actions here
+  const addTask = (text) => {
+    dispatch({type: "Added", id: uuidv4(), text})
+  }
+  const removeTask = (id) => {
+    dispatch({type: "Removed", id})
+  }
+  const toggleTask = (task) => {
+    dispatch({type: "Toggled", id: task.id})
+  }
+
+  return (
+    ...
+  )
+}
+```
+
+Back to the example we mentioned before, we can use `reducer` to solve the problem.
+
+```javascript
+const SomeReducer = (state, action) => {
+  switch (action.type) {
+    case "OPEN": {
+      return {
+        ...state,
+        isOpen: true,
+      };
+    }
+    case "CLOSE": {
+      return {
+        ...state,
+        isOpen: false,
+      };
+    }
+    case "TOGGLE": {
+      return {
+        ...state,
+        isOpen: !state.isOpen,
+      };
+    }
+    default: {
+      return state;
+    }
+  }
+};
+```
+
+And implement them inside the context and use `useMemo` to wrap the value.
+
+```javascript
+const Context = () => {
+  const [state, dispatch] = useReducer(SomeReducer, {
+    isOpen: false,
+  });
+
+  const open = useCallback(() => {
+    dispatch({ type: "OPEN" });
+  }, []);
+
+  const close = useCallback(() => {
+    dispatch({ type: "CLOSE" });
+  }, []);
+
+  const toggle = useCallback(() => {
+    dispatch({ type: "TOGGLE" });
+  }, []);
+
+  const value = useMemo(() => {
+    return {
+      open,
+      close,
+      toggle,
+      isOpen: state.isOpen,
+    };
+  }, [open, close, toggle, state.isOpen]);
+
+  return <SomeContext.Provider value={value}>{children}</SomeContext.Provider>;
+};
+```
+
+But remember that updating the state through `dispatch` will still trigger re-render.
