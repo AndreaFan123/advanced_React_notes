@@ -59,6 +59,7 @@
   - [splitting Context](#splitting-context)
   - [Reducers and split provider](#reducers-and-split-provider)
   - [What is reducer?](#what-is-reducer)
+- [Chapter 8: Refs: From storing data to imperative api](#chapter-8-refs-from-storing-data-to-imperative-api)
 
 <a id="intro-to-re-renders"></a>
 
@@ -2378,3 +2379,122 @@ const Context = () => {
 ```
 
 But remember that updating the state through `dispatch` will still trigger re-render.
+
+<a id="chapter-8-refs-from-storing-data-to-imperative-api"></a>
+
+## Chapter 8 : Refs: From storing data to imperative API
+
+### What is `ref`?
+
+According to the [doc](https://react.dev/learn/referencing-values-with-refs): When we want to **remember**
+some information, but don't want that information to trigger new renders, we use `ref`.
+
+`ref` is a plain JS object with the `current` property that can be used to read and modify.
+
+> ![IMPORTANT]
+> If we use `state` to store the value, it will trigger re-render, but if we use `ref`, it won't trigger re-render.
+
+Using `useRef`
+
+```javascript
+export default function Counter() {
+  let ref = useRef(0);
+
+  function handleClick() {
+    ref.current = ref.current + 1;
+    console.log("Increment", ref.current);
+  }
+
+  return <button onClick={handleClick}>Click me!</button>;
+}
+```
+
+Using `useState`
+
+```javascript
+export default function Counter() {
+  const [count, setCount] = useState(0);
+
+  function handleClick() {
+    setCount(() => count + 1);
+    console.log("Increment", count);
+  }
+
+  return <button onClick={handleClick}>Click me!</button>;
+}
+```
+
+<a id="ref-does-not-trigger-re-renders"></a>
+
+### Ref does not trigger re-renders
+
+If we have a form and we need to retrieve the value from the input field, usually we use `useState` to store the value, and it will re-render on every keystroke, but if we use `ref`, it won't trigger re-render.
+
+```javascript
+// Using useState
+
+const Form = () => {
+  const [value, setValue] = useState("");
+
+  const handleChange = (e) => {
+    setValue(e.target.value);
+  };
+
+  return (
+    <div>
+      <input type="text" value={value} onChange={handleChange} />
+      <span>{value}</span>
+    </div>
+  );
+};
+```
+
+```javascript
+// Using useRef
+
+const Form = () => {
+  const ref = useRef("");
+  const lettersLength = ref.current?.length ?? 0;
+
+  const handleChange = (e) => {
+    ref.current = e.target.value;
+  };
+
+  return (
+    <div>
+      <input type="text" onChange={handleChange} />
+      <span>{lettersLength}</span>
+    </div>
+  );
+};
+```
+
+Example of using `useState`, the value will be updated on every keystroke, on the other hand, `useRef` will not trigger re-render, but if something inside the component causes re-render, the `lettersLength` will be updated to the latest value.
+
+```javascript
+export default function App() {
+  [count, setCount] = useState(0);
+  const ref = useRef();
+  const numberOfLetters = ref.current?.length ?? 0;
+
+  const handleChange = (e) => {
+    ref.current = e.target.value;
+  };
+
+  const handleClick = (e) => {
+    setCount(() => count + 1);
+  };
+
+  return (
+    <div className="App">
+      <input type="text" onChange={handleChange} />
+      <span>{numberOfLetters}</span>
+
+      <button onClick={handleClick}>+</button>
+      <span>{count}</span>
+    </div>
+  );
+}
+```
+
+![Ref](./screenshots/ref.gif)
